@@ -1,0 +1,53 @@
+name: zone_on
+description: A new Flutter project.
+
+
+publish_to: 'none' # Remove this line if you wish to publish to pub.dev
+
+
+environment:
+  sdk: '>=2.18.0-44.1.beta <3.0.0'
+
+
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+
+  google_fonts: ^3.0.1
+  location: ^4.4.0
+  cupertino_icons: ^1.0.2
+  path: ^1.8.1
+  path_provider: ^2.0.11
+  open_file: ^3.0.1
+  syncfusion_flutter_xlsio: ^20.2.43-beta
+  flutter_osm_plugin: ^0.40.3
+  # convert: ^3.0.0
+  # rxdart: ^0.26.0
+  # collection: ^1.16.0
+  # meta: ^1.7.0
+  # protobuf: ^2.1.0
+  permission_handler: ^10.1.0
+  flutter_scan_bluetooth: ^2.1.2
+  flutter_bluetooth_serial: ^0.4.0
+  scoped_model: ^2.0.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  
+  flutter_lints: ^2.0.0
+
+
+flutter:
+
+  
+  uses-material-design: true
+
+  
+  assets:
+    - assets/dot2.png
+
+  
