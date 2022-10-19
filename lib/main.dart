@@ -1,4 +1,4 @@
-// ignore_for_file: prefer_const_constructors, unused_label, unused_local_variable, unnecessary_this, unnecessary_new, sort_child_properties_last, unused_element, unused_field, prefer_final_fields, avoid_unnecessary_containers, use_build_context_synchronously
+// ignore_for_file: prefer_const_constructors, unused_label, unused_local_variable, unnecessary_this, unnecessary_new, sort_child_properties_last, unused_element, unused_field, prefer_final_fields, avoid_unnecessary_containers, use_build_context_synchronously, no_leading_underscores_for_local_identifiers
 
 import 'dart:async';
 import 'dart:convert';
@@ -20,6 +20,7 @@ import 'dart:async';
 import 'dart:io';
 import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial.dart';
 import 'package:scoped_model/scoped_model.dart';
+import 'package:zone_on/start_page.dart';
 
 import 'BackgroundCollectingTask.dart';
 import 'DiscoveryPage.dart';
@@ -32,9 +33,17 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Flutter Maps',
-      home: MyHomePage(),
+      home: StartPage(),
     );
   }
+}
+
+class MyHomePage extends StatefulWidget {
+  final BluetoothDevice? server;
+  const MyHomePage({this.server});
+
+  @override
+  _MyHomePageState createState() => _MyHomePageState();
 }
 
 class _Message {
@@ -44,14 +53,19 @@ class _Message {
   _Message(this.whom, this.text);
 }
 
-class MyHomePage extends StatefulWidget {
-  MyHomePage({Key? key}) : super(key: key);
-
-  @override
-  _MyHomePageState createState() => _MyHomePageState();
-}
-
 class _MyHomePageState extends State<MyHomePage> {
+  static final clientID = 0;
+  BluetoothConnection? connection;
+
+  List<_Message> messages = List<_Message>.empty(growable: true);
+  String _messageBuffer = '';
+
+  final TextEditingController textEditingController =
+      new TextEditingController();
+  final ScrollController listScrollController = new ScrollController();
+  bool isConnecting = true;
+  bool get isConnected => (connection?.isConnected ?? false);
+  bool isDisconnecting = false;
   MethodChannel? _methodChannel;
   List<String> firstRow = ['Time Stamp', 'User Latitude', 'User Longtitude'];
   bool _isElevated = false;
@@ -59,17 +73,11 @@ class _MyHomePageState extends State<MyHomePage> {
   Data data = Data();
   StreamSubscription? _locationSubscription;
   Location _locationTracker = Location();
-  String _address = "...";
-  String _name = "...";
-  BluetoothState _bluetoothState = BluetoothState.UNKNOWN;
-  // BluetoothDevice? device;
-
-  bool _autoAcceptPairingRequests = false;
+  bool inProgress = false;
   BackgroundCollectingTask? _collectingTask;
   // Marker? marker;
   // Circle? circle;
   static const maxSeconds = 00;
-  BluetoothConnection? connection;
 
   int second = maxSeconds;
   Timer? timer;
@@ -105,56 +113,61 @@ class _MyHomePageState extends State<MyHomePage> {
   void initState() {
     super.initState();
 
-    // Get current state
-    FlutterBluetoothSerial.instance.state.then((state) {
-      setState(() {
-        _bluetoothState = state;
-      });
-    });
-
-    Future.doWhile(() async {
-      // Wait if adapter not enabled
-      if ((await FlutterBluetoothSerial.instance.isEnabled) ?? false) {
-        return false;
-      }
-      await Future.delayed(Duration(milliseconds: 0xDD));
-      return true;
-    }).then((_) {
-      // Update the address field
-      FlutterBluetoothSerial.instance.address.then((address) {
+    if (widget.server != null) {
+      BluetoothConnection.toAddress(widget.server?.address).then((_connection) {
+        print('Connected to the device');
+        connection = _connection;
         setState(() {
-          _address = address!;
+          isConnecting = false;
+          isDisconnecting = false;
         });
-      });
-    });
 
-    FlutterBluetoothSerial.instance.name.then((name) {
-      setState(() {
-        _name = name!;
+        connection!.input!.listen(_onDataReceived).onDone(() {
+          // Example: Detect which side closed the connection
+          // There should be `isDisconnecting` flag to show are we are (locally)
+          // in middle of disconnecting process, should be set before calling
+          // `dispose`, `finish` or `close`, which all causes to disconnect.
+          // If we except the disconnection, `onDone` should be fired as result.
+          // If we didn't except this (no flag set), it means closing by remote.
+          if (isDisconnecting) {
+            print('Disconnecting locally!');
+          } else {
+            print('Disconnected remotely!');
+          }
+          if (this.mounted) {
+            setState(() {});
+          }
+        });
+      }).catchError((error) {
+        print('Cannot connect, exception occured');
+        print(error);
       });
-    });
+    }
+  }
 
-    // Listen for futher state changes
-    FlutterBluetoothSerial.instance
-        .onStateChanged()
-        .listen((BluetoothState state) {
-      setState(() {
-        _bluetoothState = state;
-
-        // Discoverable mode is disabled when Bluetooth gets disabled
-      });
-    });
+  Future<void> reasume() async {
+    inProgress = true;
+    connection?.output.add(ascii.encode('S'));
+    await connection?.output.allSent;
   }
 
   void _sendMessage(String text) async {
-    text = "S";
+    text = text.trim();
+
     if (text.length > 0) {
       try {
-        connection!.output.add(Uint8List.fromList(utf8.encode(text + "\r\n")));
-        await connection!.output.allSent;
+        connection?.output.add(Uint8List.fromList(ascii.encode(text + "\r\n")));
+        await connection?.output.allSent;
+        print("data Recieved");
+
+        setState(() {
+          messages.add(_Message(clientID, text));
+        });
       } catch (e) {
         // Ignore error, but notify state
-        setState(() {});
+        setState(() {
+          print("data failed");
+        });
       }
     }
   }
@@ -183,81 +196,28 @@ class _MyHomePageState extends State<MyHomePage> {
         }
       }
     }
-  }
 
-  // void startTimer() {
-  //   timer = Timer.periodic(Duration(seconds: 1), (timer) {
-  //     setState(() {
-  //       // userLatitude.add(myLatitude);
-  //       // userLongtitude.add(myLongtitude);
-  //       // myTimes.add(second);
-
-  //       listtimeStamp.add('${DateTime.now()}');
-
-  //       second++;
-  //     });
-  //   });
-  // }
-
-  // void stopTimer() {
-  //   listtimeStamp.add('${DateTime.now()}');
-  //   timer!.cancel();
-  // }
-
-  // static final CameraPosition initialLocation = CameraPosition(
-  //   target: LatLng(29.591768, 52.583698),
-  //   zoom: 14.4746,
-  // );
-
-  // Future<Uint8List> getMarker() async {
-  //   ByteData byteData =
-  //       await DefaultAssetBundle.of(context).load("assets/dot2.png");
-  //   return byteData.buffer.asUint8List();
-  // }
-
-  // void updateMarkerAndCircle(LocationData newLocalData, Uint8List imageData) {
-  //   LatLng latlng = LatLng(newLocalData.latitude, newLocalData.longitude);
-  //   this.setState(() {
-  //     marker = Marker(
-  //         markerId: MarkerId("home"),
-  //         position: latlng,
-  //         rotation: newLocalData.heading,
-  //         draggable: false,
-  //         zIndex: 2,
-  //         flat: true,
-  //         anchor: Offset(0.5, 0.5),
-  //         icon: BitmapDescriptor.fromBytes(imageData));
-  //     circle = Circle(
-  //         circleId: CircleId("car"),
-  //         radius: newLocalData.accuracy,
-  //         strokeWidth: 2,
-  //         zIndex: 1,
-  //         strokeColor: Color.fromARGB(255, 255, 255, 255),
-  //         center: latlng,
-  //         fillColor: Color.fromARGB(123, 241, 0, 68).withAlpha(60));
-  //   });
-  // }
-
-  void startScan() async {
-    var status = await Permission.bluetoothConnect.status;
-
-    if (status.isDenied) {
-      // We didn't ask for permission yet or the permission has been denied before but not permanently.
-    }
-
-// You can can also directly ask the permission about its status.
-    if (await Permission.bluetoothConnect.isRestricted) {
-      // The OS restricts access, for example because of parental controls.
-    }
-
-    if (await Permission.bluetoothConnect.request().isGranted) {
-      // Navigator.push(
-      //   context,
-      //   MaterialPageRoute(
-      //     builder: (context) => FlutterBlueApp(),
-      //   ),
-      // );
-      // Either the permission was already granted before or the user just granted it.
+    // Create message if there is new line character
+    String dataString = String.fromCharCodes(buffer);
+    int index = buffer.indexOf(13);
+    if (~index != 0) {
+      setState(() {
+        messages.add(
+          _Message(
+            1,
+            backspacesCounter > 0
+                ? _messageBuffer.substring(
+                    0, _messageBuffer.length - backspacesCounter)
+                : _messageBuffer + dataString.substring(0, index),
+          ),
+        );
+        _messageBuffer = dataString.substring(index);
+      });
+    } else {
+      _messageBuffer = (backspacesCounter > 0
+          ? _messageBuffer.substring(
+              0, _messageBuffer.length - backspacesCounter)
+          : _messageBuffer + dataString);
     }
   }
 
@@ -318,12 +278,10 @@ class _MyHomePageState extends State<MyHomePage> {
 
   @override
   void dispose() {
-    FlutterBluetoothSerial.instance.setPairingRequestHandler(null);
-    _collectingTask?.dispose();
-    timer?.cancel();
-    super.dispose();
-    if (_locationSubscription != null) {
-      _locationSubscription!.cancel();
+    if (isConnected) {
+      isDisconnecting = true;
+      connection?.dispose();
+      connection = null;
     }
 
     super.dispose();
@@ -337,32 +295,31 @@ class _MyHomePageState extends State<MyHomePage> {
       extendBodyBehindAppBar: true,
       backgroundColor: Color.fromARGB(0, 255, 255, 255),
       appBar: AppBar(
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back),
+          onPressed: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) {
+                  return StartPage();
+                },
+              ),
+            );
+          },
+          color: Color.fromARGB(255, 48, 48, 48),
+        ),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(
             bottom: Radius.circular(12),
           ),
         ),
         shadowColor: Colors.transparent,
-        backgroundColor: Color.fromARGB(255, 255, 255, 255).withOpacity(1),
-        title: Padding(
-          padding: EdgeInsets.symmetric(horizontal: width / 20),
-          child: Row(
-            children: [
-              Icon(
-                Icons.crop_free_sharp,
-                color: Colors.black,
-              ),
-              SizedBox(
-                width: 10,
-              ),
-              Text(
-                "ZoneOn",
-                style: GoogleFonts.openSans(
-                    fontWeight: FontWeight.w800,
-                    fontSize: 20,
-                    color: Color.fromARGB(255, 39, 39, 39)),
-              ),
-            ],
+        backgroundColor: Color.fromARGB(0, 255, 255, 255).withOpacity(0),
+        title: Container(
+          width: 120,
+          child: Image.asset(
+            'assets/zon.png',
+            color: Color.fromARGB(255, 48, 48, 48),
           ),
         ),
       ),
@@ -379,7 +336,7 @@ class _MyHomePageState extends State<MyHomePage> {
               personMarker: MarkerIcon(
                 icon: Icon(
                   Icons.circle,
-                  color: Color.fromARGB(255, 0, 137, 201),
+                  color: Color.fromARGB(255, 0, 201, 167),
                   size: 52,
                 ),
               ),
@@ -398,7 +355,7 @@ class _MyHomePageState extends State<MyHomePage> {
                   color: Colors.brown,
                 ),
               ),
-              roadColor: Colors.yellowAccent,
+              roadColor: Color.fromARGB(255, 0, 201, 167),
             ),
             markerOption: MarkerOption(
                 defaultMarker: MarkerIcon(
@@ -410,107 +367,129 @@ class _MyHomePageState extends State<MyHomePage> {
             )),
           ),
           Container(
-            padding: EdgeInsets.only(bottom: height / 1.5, right: 23),
+            padding: EdgeInsets.only(bottom: height / 1.35, left: width / 1.8),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.end,
-              crossAxisAlignment: CrossAxisAlignment.end,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Transform.scale(
-                  scale: 1.2,
-                  child: SwitchListTile(
-                    contentPadding: EdgeInsets.only(right: 28),
-                    selectedTileColor: Color.fromARGB(255, 0, 137, 201),
-                    // title: const Text('Enable Bluetooth'),
-                    value: _bluetoothState.isEnabled,
-                    onChanged: (bool value) {
-                      // Do the request and update with the true value then
-                      future() async {
-                        // async lambda seems to not working
-                        if (value)
-                          await FlutterBluetoothSerial.instance.requestEnable();
-                        else
-                          await FlutterBluetoothSerial.instance
-                              .requestDisable();
-                      }
-
-                      future().then((_) {
-                        setState(() {});
-                      });
-                    },
-                  ),
+                Row(
+                  children: [
+                    widget.server == null
+                        ? Container(
+                            width: 110,
+                            height: 35,
+                            decoration: BoxDecoration(
+                                border: Border.all(
+                                  color: Color.fromARGB(255, 0, 201, 167),
+                                ),
+                                borderRadius: BorderRadius.circular(
+                                    20) // use instead of BorderRadius.all(Radius.circular(20))
+                                ),
+                            child: Center(
+                              child: Text(
+                                "just for tracking",
+                                style: GoogleFonts.openSans(
+                                    textStyle: Theme.of(context)
+                                        .textTheme
+                                        .displayMedium,
+                                    color: Color.fromARGB(255, 68, 68, 68),
+                                    fontWeight: FontWeight.w500,
+                                    fontSize: 10),
+                              ),
+                            ),
+                          )
+                        : Container(
+                            width: 110,
+                            height: 35,
+                            decoration: BoxDecoration(
+                                border: Border.all(
+                                  color: Color.fromARGB(255, 0, 201, 167),
+                                ),
+                                borderRadius: BorderRadius.circular(
+                                    20) // use instead of BorderRadius.all(Radius.circular(20))
+                                ),
+                            child: Center(
+                              child: Text(
+                                "${widget.server?.address}",
+                                style: GoogleFonts.openSans(
+                                    textStyle: Theme.of(context)
+                                        .textTheme
+                                        .displayMedium,
+                                    color: Color.fromARGB(255, 68, 68, 68),
+                                    fontWeight: FontWeight.w500,
+                                    fontSize: 10),
+                              ),
+                            ),
+                          ),
+                    SizedBox(
+                      width: 12,
+                    ),
+                    SizedBox(
+                      width: 40,
+                      child: FloatingActionButton(
+                          heroTag: '123',
+                          backgroundColor: Color.fromARGB(255, 0, 201, 167),
+                          child: Icon(
+                            Icons.mode_comment_outlined,
+                            color: Color.fromARGB(255, 255, 255, 255),
+                            size: 22,
+                          ),
+                          onPressed: () {
+                            // Start scanning
+                          }),
+                    ),
+                  ],
                 ),
                 SizedBox(
-                  height: 5,
+                  height: 2,
                 ),
-                // FloatingActionButton(
-                //     heroTag: 'deboug',
-                //     backgroundColor: Color.fromARGB(255, 0, 137, 201),
-                //     child: Icon(
-                //       Icons.bluetooth,
-                //       color: Color.fromARGB(255, 255, 255, 255),
-                //       size: 30,
-                //     ),
-                //     onPressed: () {
-                //       // Start scanning
-                //       startScan();
-                //     }),
-                // SizedBox(
-                //   height: 15,
-                // ),
-                FloatingActionButton(
-                  heroTag: 's',
-                  backgroundColor: Color.fromARGB(255, 0, 137, 201),
-                  child: Icon(
-                    Icons.search_rounded,
-                    color: Color.fromARGB(255, 255, 255, 255),
-                    size: 30,
-                  ),
-                  onPressed: () async {
-                    final BluetoothDevice? selectedDevice =
-                        await Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (context) {
-                          return DiscoveryPage();
-                        },
-                      ),
-                    );
-
-                    if (selectedDevice != null) {
-                      print('Discovery -> selected ' + selectedDevice.address);
-                    } else {
-                      print('Discovery -> no device selected');
-                    }
-                  },
-                ),
-                SizedBox(
-                  height: 15,
-                ),
-                FloatingActionButton(
-                  heroTag: 's1',
-                  backgroundColor: Color.fromARGB(255, 0, 137, 201),
-                  child: Icon(
-                    Icons.bluetooth_connected,
-                    color: Color.fromARGB(255, 255, 255, 255),
-                    size: 30,
-                  ),
-                  onPressed: () async {
-                    final BluetoothDevice? selectedDevice =
-                        await Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (context) {
-                          return SelectBondedDevicePage(
-                              checkAvailability: false);
-                        },
-                      ),
-                    );
-
-                    if (selectedDevice != null) {
-                      print('Connect -> selected ' + selectedDevice.address);
-                    } else {
-                      print('Connect -> no device selected');
-                    }
-                  },
-                ),
+                widget.server != null
+                    ? Row(
+                        children: [
+                          Container(
+                            width: 110,
+                            height: 35,
+                            decoration: BoxDecoration(
+                                border: Border.all(
+                                  color: Color.fromARGB(255, 0, 201, 167),
+                                ),
+                                borderRadius: BorderRadius.circular(
+                                    20) // use instead of BorderRadius.all(Radius.circular(20))
+                                ),
+                            child: Center(
+                              child: Text(
+                                "${widget.server?.name}",
+                                style: GoogleFonts.openSans(
+                                    textStyle: Theme.of(context)
+                                        .textTheme
+                                        .displayMedium,
+                                    color: Color.fromARGB(255, 68, 68, 68),
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 11),
+                              ),
+                            ),
+                          ),
+                          SizedBox(
+                            width: 12,
+                          ),
+                          SizedBox(
+                            width: 40,
+                            child: FloatingActionButton(
+                                heroTag: '435',
+                                backgroundColor:
+                                    Color.fromARGB(255, 0, 201, 167),
+                                child: Icon(
+                                  Icons.sensors,
+                                  color: Color.fromARGB(255, 255, 255, 255),
+                                  size: 22,
+                                ),
+                                onPressed: () {
+                                  // Start scanning
+                                }),
+                          ),
+                        ],
+                      )
+                    : Text("")
               ],
             ),
           ),
@@ -520,7 +499,7 @@ class _MyHomePageState extends State<MyHomePage> {
                 padding: EdgeInsets.fromLTRB(
                     width / 25, height - height / 9.6, 0, 0),
                 child: FloatingActionButton(
-                    backgroundColor: Color.fromARGB(255, 0, 0, 0),
+                    backgroundColor: Color.fromARGB(255, 48, 48, 48),
                     child: Icon(Icons.location_searching,
                         color: Color.fromARGB(255, 255, 255, 255)),
                     onPressed: () {

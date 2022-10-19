@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial.dart';
 
 import './BluetoothDeviceListEntry.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class SelectBondedDevicePage extends StatefulWidget {
   /// If true, on page start there is performed discovery upon the bonded devices.
@@ -121,7 +122,15 @@ class _SelectBondedDevicePage extends State<SelectBondedDevicePage> {
         .toList();
     return Scaffold(
       appBar: AppBar(
-        title: Text('Select device'),
+        backgroundColor: Color.fromARGB(255, 0, 201, 167),
+        title: Text(
+          'Select device',
+          style: GoogleFonts.openSans(
+              textStyle: Theme.of(context).textTheme.displayMedium,
+              color: Color.fromARGB(255, 255, 255, 255),
+              fontWeight: FontWeight.w700,
+              fontSize: 20),
+        ),
         actions: <Widget>[
           _isDiscovering
               ? FittedBox(

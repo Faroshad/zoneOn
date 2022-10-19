@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial.dart';
-
+import 'package:google_fonts/google_fonts.dart';
 import './BluetoothDeviceListEntry.dart';
 
 class DiscoveryPage extends StatefulWidget {
@@ -76,16 +76,32 @@ class _DiscoveryPage extends State<DiscoveryPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        backgroundColor: Color.fromARGB(255, 0, 201, 167),
         title: isDiscovering
-            ? Text('Discovering devices')
-            : Text('Discovered devices'),
+            ? Text(
+                'Discovering Devices',
+                style: GoogleFonts.openSans(
+                    textStyle: Theme.of(context).textTheme.displayMedium,
+                    color: Color.fromARGB(255, 255, 255, 255),
+                    fontWeight: FontWeight.w700,
+                    fontSize: 20),
+              )
+            : Text(
+                'Discovered Devices',
+                style: GoogleFonts.openSans(
+                    textStyle: Theme.of(context).textTheme.displayMedium,
+                    color: Color.fromARGB(255, 255, 255, 255),
+                    fontWeight: FontWeight.w700,
+                    fontSize: 20),
+              ),
         actions: <Widget>[
           isDiscovering
               ? FittedBox(
                   child: Container(
                     margin: new EdgeInsets.all(16.0),
                     child: CircularProgressIndicator(
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                          Color.fromARGB(255, 247, 247, 247)),
                     ),
                   ),
                 )
