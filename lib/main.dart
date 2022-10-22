@@ -3,6 +3,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
@@ -21,8 +22,6 @@ import 'dart:io';
 import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial.dart';
 import 'package:scoped_model/scoped_model.dart';
 import 'package:zone_on/start_page.dart';
-
-import 'BackgroundCollectingTask.dart';
 import 'DiscoveryPage.dart';
 
 void main() => runApp(MyApp());
@@ -56,31 +55,57 @@ class _Message {
 class _MyHomePageState extends State<MyHomePage> {
   static final clientID = 0;
   BluetoothConnection? connection;
+  List<dynamic> listTimeStamp = [];
+  List<double> listLong = [];
+  List<double> listLat = [];
+  List<String> listTemp = [];
+  List<String> listHitindex = [];
+  List<String> listHumidity = [];
+  List<String> listSound = [];
+  List<String> listPpm = [];
+  List<String> listRzero = [];
+  List<String> listLight = [];
 
   List<_Message> messages = List<_Message>.empty(growable: true);
   String _messageBuffer = '';
 
+  MethodChannel? _methodChannel;
+  StreamSubscription? _locationSubscription;
+  Location _locationTracker = Location();
   final TextEditingController textEditingController =
       new TextEditingController();
   final ScrollController listScrollController = new ScrollController();
   bool isConnecting = true;
   bool get isConnected => (connection?.isConnected ?? false);
   bool isDisconnecting = false;
-  MethodChannel? _methodChannel;
-  List<String> firstRow = ['Time Stamp', 'User Latitude', 'User Longtitude'];
+
+  List<String> firstRow = [
+    'Time Stamp',
+    'User Latitude',
+    'User Longtitude',
+    "Temperature",
+    "Heat index",
+    "Humidity",
+    "Sound",
+    "ppm",
+    "rZero",
+    "Light"
+  ];
   bool _isElevated = false;
   bool _isElevated2 = false;
-  Data data = Data();
-  StreamSubscription? _locationSubscription;
-  Location _locationTracker = Location();
-  bool inProgress = false;
-  BackgroundCollectingTask? _collectingTask;
-  // Marker? marker;
-  // Circle? circle;
-  static const maxSeconds = 00;
+  double myLat = 0;
+  double myLong = 0;
 
+  List sample = [];
+  bool inProgress = false;
+  String situation = '';
+
+  MyData myData = MyData();
+
+  static const maxSeconds = 00;
   int second = maxSeconds;
   Timer? timer;
+  Timer? timer2;
 
   MapController controller = MapController();
   // GoogleMapController? _controller;
@@ -89,9 +114,16 @@ class _MyHomePageState extends State<MyHomePage> {
     final xl.Worksheet sheet = workbook.worksheets[0];
     sheet.importList(firstRow, 1, 1, false);
 
-    sheet.importList(data.userLatitude, 2, 2, true);
-    sheet.importList(data.userLongtitude, 2, 3, true);
-    sheet.importList(data.listtimeStamp, 2, 1, true);
+    sheet.importList(listTimeStamp, 2, 1, true);
+    sheet.importList(listLat, 2, 2, true);
+    sheet.importList(listLong, 2, 3, true);
+    sheet.importList(listTemp, 2, 4, true);
+    sheet.importList(listHitindex, 2, 5, true);
+    sheet.importList(listHumidity, 2, 6, true);
+    sheet.importList(listSound, 2, 7, true);
+    sheet.importList(listPpm, 2, 8, true);
+    sheet.importList(listRzero, 2, 9, true);
+    sheet.importList(listLight, 2, 10, true);
 
     //Save and launch the excel.
     final List<int> bytes = workbook
@@ -116,6 +148,21 @@ class _MyHomePageState extends State<MyHomePage> {
     if (widget.server != null) {
       BluetoothConnection.toAddress(widget.server?.address).then((_connection) {
         print('Connected to the device');
+        connection?.input?.listen((Uint8List data) {
+          print('Data incoming: ${ascii.decode(data)}');
+          connection?.output.add(data);
+          // samples.add(data);
+          // print(" the number ${samples.length}");
+          // Sending data
+
+          if (ascii.decode(data).contains('!')) {
+            connection?.finish(); // Closing connection
+            print('Disconnecting by local host');
+          }
+        }).onDone(() {
+          print('Disconnected by remote request');
+        });
+
         connection = _connection;
         setState(() {
           isConnecting = false;
@@ -123,6 +170,7 @@ class _MyHomePageState extends State<MyHomePage> {
         });
 
         connection!.input!.listen(_onDataReceived).onDone(() {
+          print("on Done!");
           // Example: Detect which side closed the connection
           // There should be `isDisconnecting` flag to show are we are (locally)
           // in middle of disconnecting process, should be set before calling
@@ -145,10 +193,12 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
-  Future<void> reasume() async {
-    inProgress = true;
-    connection?.output.add(ascii.encode('S'));
-    await connection?.output.allSent;
+  String? title() {
+    if (isConnected) {
+      return "connected";
+    } else {
+      return "disconnected";
+    }
   }
 
   void _sendMessage(String text) async {
@@ -156,9 +206,10 @@ class _MyHomePageState extends State<MyHomePage> {
 
     if (text.length > 0) {
       try {
-        connection?.output.add(Uint8List.fromList(ascii.encode(text + "\r\n")));
+        connection?.output.add(Uint8List.fromList(ascii.encode(text)));
         await connection?.output.allSent;
-        print("data Recieved");
+        print("data sent");
+        print(text);
 
         setState(() {
           messages.add(_Message(clientID, text));
@@ -174,6 +225,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
   void _onDataReceived(Uint8List data) {
     // Allocate buffer for parsed data
+    // print("data received");
     int backspacesCounter = 0;
     data.forEach((byte) {
       if (byte == 8 || byte == 127) {
@@ -183,7 +235,6 @@ class _MyHomePageState extends State<MyHomePage> {
     Uint8List buffer = Uint8List(data.length - backspacesCounter);
     int bufferIndex = buffer.length;
 
-    // Apply backspace control character
     backspacesCounter = 0;
     for (int i = data.length - 1; i >= 0; i--) {
       if (data[i] == 8 || data[i] == 127) {
@@ -199,81 +250,135 @@ class _MyHomePageState extends State<MyHomePage> {
 
     // Create message if there is new line character
     String dataString = String.fromCharCodes(buffer);
-    int index = buffer.indexOf(13);
-    if (~index != 0) {
-      setState(() {
-        messages.add(
-          _Message(
-            1,
-            backspacesCounter > 0
-                ? _messageBuffer.substring(
-                    0, _messageBuffer.length - backspacesCounter)
-                : _messageBuffer + dataString.substring(0, index),
-          ),
-        );
-        _messageBuffer = dataString.substring(index);
+    // print(dataString);
+
+    const temp = "{\"temperature\":";
+    const heatindex = ",\"heatIndex\":";
+
+    final startIndex = dataString.indexOf(temp);
+    final endIndex = dataString.indexOf(heatindex, startIndex + temp.length);
+    listTemp.add(dataString.substring(startIndex + temp.length, endIndex));
+    //
+    const humidity = ",\"humidity\":";
+
+    final startIndex1 = dataString.indexOf(heatindex);
+    final endIndex1 =
+        dataString.indexOf(humidity, startIndex1 + humidity.length);
+    listHitindex
+        .add(dataString.substring(startIndex1 + heatindex.length, endIndex1));
+
+    const ppm = ",\"ppm\":";
+
+    final startIndex2 = dataString.indexOf(humidity);
+    final endIndex2 = dataString.indexOf(ppm, startIndex2 + ppm.length);
+    listHumidity
+        .add(dataString.substring(startIndex2 + humidity.length, endIndex2));
+
+    const rZero = ",\"rZero\":";
+
+    final startIndex3 = dataString.indexOf(ppm);
+    final endIndex3 = dataString.indexOf(rZero, startIndex3 + rZero.length);
+    listPpm.add(dataString.substring(startIndex3 + ppm.length, endIndex3));
+
+    const light = ",\"light\":";
+
+    final startIndex4 = dataString.indexOf(rZero);
+    final endIndex4 = dataString.indexOf(light, startIndex4 + light.length);
+    listRzero.add(dataString.substring(startIndex4 + rZero.length, endIndex4));
+
+    const mic = ",\"mic\":";
+
+    final startIndex5 = dataString.indexOf(light);
+    final endIndex5 = dataString.indexOf(mic, startIndex5 + mic.length);
+    listLight.add(dataString.substring(startIndex5 + light.length, endIndex5));
+
+    const battery = ",\"battery\":";
+
+    final startIndex6 = dataString.indexOf(mic);
+    final endIndex6 = dataString.indexOf(battery, startIndex6 + battery.length);
+    listSound.add(dataString.substring(startIndex6 + mic.length, endIndex6));
+
+    // RegExp exp = RegExp('(?<="temperature")(.*?)(?=,"heatIndex")');
+    // String str = dataString;
+    // RegExpMatch? match = exp.firstMatch(str);
+    // print("the match is : ${match.toString()}");
+
+    // RegExp exp2 = RegExp(r'\d+');
+    // String str2 = dataString;
+    // Iterable<RegExpMatch> matches = exp2.allMatches(str2);
+    // for (final m in matches) {
+    //   // print(m[0].toString());
+    // }
+  }
+
+  void timerBanner() {
+    timer2 = Timer.periodic(Duration(seconds: 1), (timer2) {
+      second++;
+    });
+  }
+
+  void startTimer() {
+    timer = Timer.periodic(Duration(milliseconds: 500), (timer) {
+      print("Location work perfect");
+      _locationSubscription =
+          _locationTracker.onLocationChanged.listen((newLocalData) {
+        myLat = newLocalData.latitude!;
+        myLong = newLocalData.longitude!;
       });
-    } else {
-      _messageBuffer = (backspacesCounter > 0
-          ? _messageBuffer.substring(
-              0, _messageBuffer.length - backspacesCounter)
-          : _messageBuffer + dataString);
-    }
+
+      _sendMessage("s");
+      listTimeStamp.add("${DateTime.now()}");
+      listLat.add(myLat);
+      listLong.add(myLong);
+      // listTimeStamp.add("");
+      // listLat.add(myLat);
+      // listLong.add(myLong);
+      // listTimeStamp.add("");
+      // listLat.add(myLat);
+      // listLong.add(myLong);
+      // listTimeStamp.add("");
+      // listLat.add(myLat);
+      // listLong.add(myLong);
+
+      // myData.rowData.add(MyData(
+      //   listtimeStamp: "${DateTime.now()}",
+      //   userLatitude: myLat,
+      //   userLongtitude: myLong,
+      //   // temperature: ,
+      //   // heatIndex: ,
+      //   // humidity: ,
+      //   // sound: ,
+      //   // ppm: ,
+      //   // rZero: ,
+      //   // light: ,
+      // ));
+
+      // userLatitude.add(myLat!);
+      // userLongtitude.add(myLong!);
+    });
   }
 
   void getCurrentLocation() async {
     try {
-      // Uint8List imageData = await getMarker();
       var location = await _locationTracker.getLocation();
       await controller.currentLocation();
-      // MapController controller = MapController(
-      //   initMapWithUserPosition: false,
-      //   initPosition: GeoPoint(
-      //     latitude: 29.591768,
-      //     longitude: 52.583698,
-      //   ),
-      // );
-      // Future<bool> changeSettings(
-      //         {LocationAccuracy accuracy = LocationAccuracy.HIGH,
-      //         int interval = 1000,
-      //         double distanceFilter = 0}) =>
-      //     _methodChannel!.invokeMethod('changeSettings', {
-      //       "accuracy": accuracy.index,
-      //       "interval": interval,
-      //       "distanceFilter": distanceFilter
-      //     }).then((result) => result == 1);
-
-      // updateMarkerAndCircle(location, imageData);
 
       if (_locationSubscription != null) {
         _locationSubscription!.cancel();
       }
-
-      // _locationSubscription =
-      //     _locationTracker.onLocationChanged().listen((newLocalData) {
-      //   // setState(() {
-      //   //   myLat = "${newLocalData.latitude}";
-      //   //   myLong = "${newLocalData.longitude}";
-      //   //   userLatitude.add("$myLat");
-      //   //   userLongtitude.add("$myLong");
-      //   // });
-
-      //   // if (_controller != null) {
-      //   //   _controller!.animateCamera(CameraUpdate.newCameraPosition(
-      //   //       new CameraPosition(
-      //   //           bearing: 180,
-      //   //           target: LatLng(newLocalData.latitude, newLocalData.longitude),
-      //   //           tilt: 0,
-      //   //           zoom: 18.00)));
-      //   //   // updateMarkerAndCircle(newLocalData, imageData);
-      //   //   setState(() {});
-      //   // }
-      // });
     } on PlatformException catch (e) {
       if (e.code == 'PERMISSION_DENIED') {
         debugPrint("Permission Denied");
       }
     }
+  }
+
+  void stopBanner() {
+    timer2!.cancel();
+  }
+
+  void stopTimer() {
+    timer!.cancel();
   }
 
   @override
@@ -295,6 +400,26 @@ class _MyHomePageState extends State<MyHomePage> {
       extendBodyBehindAppBar: true,
       backgroundColor: Color.fromARGB(0, 255, 255, 255),
       appBar: AppBar(
+        actions: [
+          IconButton(
+              iconSize: 30,
+              onPressed: () {
+                _sendMessage("s");
+                print(sample);
+
+                // Navigator.of(context).push(
+                //   MaterialPageRoute(
+                //     builder: (context) {
+                //       return BackgroundCollectedPage();
+                //     },
+                //   ),
+                // );
+              },
+              icon: Icon(
+                Icons.find_replace_sharp,
+                color: Colors.black,
+              ))
+        ],
         leading: IconButton(
           icon: Icon(Icons.arrow_back),
           onPressed: () {
@@ -410,14 +535,14 @@ class _MyHomePageState extends State<MyHomePage> {
                                 ),
                             child: Center(
                               child: Text(
-                                "${widget.server?.address}",
+                                title()!,
                                 style: GoogleFonts.openSans(
                                     textStyle: Theme.of(context)
                                         .textTheme
                                         .displayMedium,
                                     color: Color.fromARGB(255, 68, 68, 68),
-                                    fontWeight: FontWeight.w500,
-                                    fontSize: 10),
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 12),
                               ),
                             ),
                           ),
@@ -489,7 +614,15 @@ class _MyHomePageState extends State<MyHomePage> {
                           ),
                         ],
                       )
-                    : Text("")
+                    : Text(""),
+                Text(
+                  "",
+                  style: GoogleFonts.openSans(
+                      textStyle: Theme.of(context).textTheme.displayMedium,
+                      color: Color.fromARGB(255, 68, 68, 68),
+                      fontWeight: FontWeight.w500,
+                      fontSize: 11),
+                ),
               ],
             ),
           ),
@@ -514,9 +647,11 @@ class _MyHomePageState extends State<MyHomePage> {
                     setState(() {
                       _isElevated = !_isElevated;
                       if (_isElevated) {
-                        data.startTimer();
+                        startTimer();
+                        timerBanner();
                       } else {
-                        data.stopTimer();
+                        stopTimer();
+                        stopBanner();
 
                         second = maxSeconds;
                       }
@@ -544,9 +679,9 @@ class _MyHomePageState extends State<MyHomePage> {
                         ),
                         _isElevated
                             ? Padding(
-                                padding: const EdgeInsets.only(left: 20),
+                                padding: EdgeInsets.only(left: 20),
                                 child: Text(
-                                  '${data.second}',
+                                  '$second',
                                   style: GoogleFonts.openSans(
                                       textStyle: Theme.of(context)
                                           .textTheme

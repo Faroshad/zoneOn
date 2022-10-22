@@ -24,7 +24,6 @@ import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial.dart';
 import 'package:scoped_model/scoped_model.dart';
 import 'package:zone_on/start_page.dart';
 
-import 'BackgroundCollectingTask.dart';
 import 'DiscoveryPage.dart';
 
 class StartPage extends StatefulWidget {
@@ -40,8 +39,6 @@ class _StartPageState extends State<StartPage> {
 
   Timer? _discoverableTimeoutTimer;
   int _discoverableTimeoutSecondsLeft = 0;
-
-  BackgroundCollectingTask? _collectingTask;
 
   bool _autoAcceptPairingRequests = false;
 
@@ -105,7 +102,7 @@ class _StartPageState extends State<StartPage> {
   @override
   void dispose() {
     FlutterBluetoothSerial.instance.setPairingRequestHandler(null);
-    _collectingTask?.dispose();
+
     _discoverableTimeoutTimer?.cancel();
     super.dispose();
   }
@@ -125,7 +122,7 @@ class _StartPageState extends State<StartPage> {
                 width: 300,
                 child: Image.asset(
                   'assets/zon.png',
-                  color: Color.fromARGB(255, 48, 48, 48),
+                  color: Color.fromARGB(255, 0, 32, 90),
                 ),
               ),
             ),
@@ -294,7 +291,7 @@ class _StartPageState extends State<StartPage> {
                       Flexible(
                         child: FloatingActionButton(
                             heroTag: 's3',
-                            backgroundColor: Color.fromARGB(255, 48, 48, 48),
+                            backgroundColor: Color.fromARGB(255, 0, 32, 90),
                             child: Icon(
                               Icons.track_changes_outlined,
                               color: Color.fromARGB(255, 255, 255, 255),
@@ -320,7 +317,7 @@ class _StartPageState extends State<StartPage> {
                         style: GoogleFonts.openSans(
                             textStyle:
                                 Theme.of(context).textTheme.displayMedium,
-                            color: Color.fromARGB(255, 48, 48, 48),
+                            color: Color.fromARGB(255, 0, 32, 90),
                             fontWeight: FontWeight.w800,
                             fontSize: 16),
                       ),

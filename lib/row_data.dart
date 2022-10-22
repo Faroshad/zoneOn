@@ -16,87 +16,29 @@ import 'package:path_provider/path_provider.dart';
 import 'dart:async';
 import 'dart:io';
 
-class Data {
-  List<dynamic> listtimeStamp = [];
-  List<double> userLatitude = [];
-  List<double> userLongtitude = [];
-  double? myLong = 0;
-  double? myLat = 0;
-  MethodChannel? _methodChannel;
-  StreamSubscription? _locationSubscription;
-  Location _locationTracker = Location();
+class MyData {
+  dynamic listtimeStamp;
+  double? userLatitude;
+  double? userLongtitude;
+  double? temperature;
+  double? heatIndex;
+  double? humidity;
+  double? ppm;
+  double? rZero;
+  double? light;
+  double? sound;
+
+  MyData(
+      {this.listtimeStamp,
+      this.userLatitude,
+      this.userLongtitude,
+      this.temperature,
+      this.heatIndex,
+      this.humidity,
+      this.ppm,
+      this.rZero,
+      this.light,
+      this.sound});
   // GoogleMapController? _controller;
-  static const maxSeconds = 00;
-  int second = maxSeconds;
-  Timer? timer;
-  // void startBluetooth() async {
-  //   try {
-  //     BluetoothConnection connection =
-  //         await BluetoothConnection.toAddress(address);
-  //     print('Connected to the device');
-
-  //     connection.input?.listen((Uint8List data) {
-  //       print('Data incoming: ${ascii.decode(data)}');
-  //       connection.output.add(data); // Sending data
-
-  //       if (ascii.decode(data).contains('!')) {
-  //         connection.finish(); // Closing connection
-  //         print('Disconnecting by local host');
-  //       }
-  //     }).onDone(() {
-  //       print('Disconnected by remote request');
-  //     });
-  //   } catch (exception) {
-  //     print('Cannot connect, exception occured');
-  //   }
-  // }
-
-  void startTimer() {
-    timer = Timer.periodic(Duration(seconds: 1), (timer) {
-      // userLatitude.add(myLatitude);
-      // userLongtitude.add(myLongtitude);
-      // myTimes.add(second);
-
-      listtimeStamp.add("${DateTime.now()}");
-      // _locationSubscription =
-      //     _locationTracker.onLocationChanged().listen((newLocalData) {
-      //   myLat = newLocalData.latitude;
-      //   myLong = newLocalData.longitude;
-      // });
-      userLatitude.add(myLat!);
-      userLongtitude.add(myLong!);
-      void getCurrentLocation() async {
-        try {
-          var location = await _locationTracker.getLocation();
-          // Future<bool> changeSettings(
-          //         {LocationAccuracy accuracy = LocationAccuracy.HIGH,
-          //         int interval = 1000,
-          //         double distanceFilter = 0}) =>
-          //     _methodChannel!.invokeMethod('changeSettings', {
-          //       "accuracy": accuracy.index,
-          //       "interval": interval,
-          //       "distanceFilter": distanceFilter
-          //     }).then((result) => result == 1);
-
-          // if (_locationSubscription != null) {
-          //   _locationSubscription!.cancel();
-          // }
-
-        } on PlatformException catch (e) {
-          if (e.code == 'PERMISSION_DENIED') {
-            debugPrint("Permission Denied");
-          }
-        }
-      }
-
-      second++;
-    });
-  }
-
-  void stopTimer() {
-    listtimeStamp.add("${DateTime.now()}");
-    userLatitude.add(myLat!);
-    userLongtitude.add(myLong!);
-    timer!.cancel();
-  }
+  List<MyData> rowData = [];
 }
