@@ -7,12 +7,13 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
-
+import 'package:noise_meter/noise_meter.dart';
 import 'package:location/location.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:open_file/open_file.dart';
 import 'package:syncfusion_flutter_xlsio/xlsio.dart' as xl;
 import 'package:permission_handler/permission_handler.dart';
+import 'package:audio_streamer/audio_streamer.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:zone_on/SelectBondedDevicePage.dart';
 import 'package:zone_on/row_data.dart';
@@ -54,6 +55,11 @@ class _Message {
 
 class _MyHomePageState extends State<MyHomePage> {
   static final clientID = 0;
+  bool _isRecording = false;
+
+  StreamSubscription<NoiseReading>? _noiseSubscription;
+
+  NoiseMeter? _noiseMeter;
   BluetoothConnection? connection;
   List<dynamic> listTimeStamp = [];
   List<double> listLong = [];
@@ -65,6 +71,11 @@ class _MyHomePageState extends State<MyHomePage> {
   List<String> listPpm = [];
   List<String> listRzero = [];
   List<String> listLight = [];
+  List<double> listSoundNew = [];
+  double? result;
+
+  double? batteryLife = 5;
+  double? oldBatteryLife = 3;
 
   List<_Message> messages = List<_Message>.empty(growable: true);
   String _messageBuffer = '';
@@ -144,6 +155,7 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   void initState() {
     super.initState();
+    _noiseMeter = new NoiseMeter(onError);
 
     if (widget.server != null) {
       BluetoothConnection.toAddress(widget.server?.address).then((_connection) {
@@ -223,6 +235,50 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
+  Widget batteries() {
+    if (batteryLife! >= 84) {
+      return Icon(
+        Icons.battery_6_bar_sharp,
+        color: Colors.black,
+      );
+    }
+    if (batteryLife! <= 84 && batteryLife! >= 68) {
+      return Icon(
+        Icons.battery_5_bar_sharp,
+        color: Colors.black,
+      );
+    }
+    if (batteryLife! <= 68 && batteryLife! >= 52) {
+      return Icon(
+        Icons.battery_4_bar_sharp,
+        color: Colors.black,
+      );
+    }
+    if (batteryLife! <= 52 && batteryLife! >= 36) {
+      return Icon(
+        Icons.battery_3_bar_sharp,
+        color: Colors.black,
+      );
+    }
+    if (batteryLife! <= 36 && batteryLife! >= 20) {
+      return Icon(
+        Icons.battery_2_bar_sharp,
+        color: Colors.black,
+      );
+    }
+    if (batteryLife! <= 20 && batteryLife! >= 4) {
+      return Icon(
+        Icons.battery_1_bar_sharp,
+        color: Colors.black,
+      );
+    } else {
+      return Icon(
+        Icons.battery_0_bar_sharp,
+        color: Color.fromARGB(255, 255, 0, 0),
+      );
+    }
+  }
+
   void _onDataReceived(Uint8List data) {
     // Allocate buffer for parsed data
     // print("data received");
@@ -257,47 +313,65 @@ class _MyHomePageState extends State<MyHomePage> {
 
     final startIndex = dataString.indexOf(temp);
     final endIndex = dataString.indexOf(heatindex, startIndex + temp.length);
-    listTemp.add(dataString.substring(startIndex + temp.length, endIndex));
+    listTemp.add(
+        double.parse(dataString.substring(startIndex + temp.length, endIndex))
+            .toStringAsFixed(2));
     //
     const humidity = ",\"humidity\":";
 
     final startIndex1 = dataString.indexOf(heatindex);
     final endIndex1 =
         dataString.indexOf(humidity, startIndex1 + humidity.length);
-    listHitindex
-        .add(dataString.substring(startIndex1 + heatindex.length, endIndex1));
+    listHitindex.add(double.parse(
+            dataString.substring(startIndex1 + heatindex.length, endIndex1))
+        .toStringAsFixed(2));
 
     const ppm = ",\"ppm\":";
 
     final startIndex2 = dataString.indexOf(humidity);
     final endIndex2 = dataString.indexOf(ppm, startIndex2 + ppm.length);
-    listHumidity
-        .add(dataString.substring(startIndex2 + humidity.length, endIndex2));
+    listHumidity.add(double.parse(
+            dataString.substring(startIndex2 + humidity.length, endIndex2))
+        .toStringAsFixed(2));
 
     const rZero = ",\"rZero\":";
 
     final startIndex3 = dataString.indexOf(ppm);
     final endIndex3 = dataString.indexOf(rZero, startIndex3 + rZero.length);
-    listPpm.add(dataString.substring(startIndex3 + ppm.length, endIndex3));
+    listPpm.add(
+        double.parse(dataString.substring(startIndex3 + ppm.length, endIndex3))
+            .toStringAsFixed(2));
 
     const light = ",\"light\":";
 
     final startIndex4 = dataString.indexOf(rZero);
     final endIndex4 = dataString.indexOf(light, startIndex4 + light.length);
-    listRzero.add(dataString.substring(startIndex4 + rZero.length, endIndex4));
+    listRzero.add(double.parse(
+            dataString.substring(startIndex4 + rZero.length, endIndex4))
+        .toStringAsFixed(2));
 
     const mic = ",\"mic\":";
 
     final startIndex5 = dataString.indexOf(light);
     final endIndex5 = dataString.indexOf(mic, startIndex5 + mic.length);
-    listLight.add(dataString.substring(startIndex5 + light.length, endIndex5));
+    listLight.add(double.parse(
+            dataString.substring(startIndex5 + light.length, endIndex5))
+        .toStringAsFixed(2));
 
     const battery = ",\"battery\":";
 
-    final startIndex6 = dataString.indexOf(mic);
-    final endIndex6 = dataString.indexOf(battery, startIndex6 + battery.length);
-    listSound.add(dataString.substring(startIndex6 + mic.length, endIndex6));
+    // final startIndex6 = dataString.indexOf(mic);
+    // final endIndex6 = dataString.indexOf(battery, startIndex6 + battery.length);
+    // listSound.add(dataString.substring(startIndex6 + mic.length, endIndex6));
 
+    const fin = "}";
+
+    final startIndex7 = dataString.indexOf(battery);
+    final endIndex7 = dataString.indexOf(fin, startIndex7 + fin.length);
+    oldBatteryLife = double.parse(
+        dataString.substring(startIndex7 + battery.length, endIndex7));
+
+    batteryLife = (((oldBatteryLife! - 2.6) * (100 - 0)) / (3.7 - 2.6)) + 0;
     // RegExp exp = RegExp('(?<="temperature")(.*?)(?=,"heatIndex")');
     // String str = dataString;
     // RegExpMatch? match = exp.firstMatch(str);
@@ -312,8 +386,12 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   void timerBanner() {
-    timer2 = Timer.periodic(Duration(seconds: 1), (timer2) {
+    timer2 = Timer.periodic(Duration(milliseconds: 500), (timer2) {
       second++;
+      result = listSoundNew.reduce((a, b) => a + b) / listSoundNew.length;
+      print(result);
+      listSound.add(result!.toStringAsFixed(2));
+      listSoundNew = [];
     });
   }
 
@@ -328,6 +406,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
       _sendMessage("s");
       listTimeStamp.add("${DateTime.now()}");
+
       listLat.add(myLat);
       listLong.add(myLong);
       // listTimeStamp.add("");
@@ -379,10 +458,62 @@ class _MyHomePageState extends State<MyHomePage> {
 
   void stopTimer() {
     timer!.cancel();
+    stop2();
+  }
+
+  void onData(NoiseReading noiseReading) {
+    this.setState(() {
+      if (!this._isRecording) {
+        this._isRecording = true;
+      }
+    });
+
+    listSoundNew.add(noiseReading.meanDecibel);
+    // if (listSoundNew.length == 250) {
+    //   result = listSoundNew.reduce((a, b) => a + b) / listSoundNew.length;
+    //   print(result);
+    //   listSound.add(result!);
+    //   listSoundNew = [];
+    // }
+  }
+
+  void onError(Object error) {
+    print(error.toString());
+    _isRecording = false;
+  }
+
+  Stream<double> getRandomValues() async* {
+    while (true) {
+      await Future.delayed(Duration(seconds: 1));
+    }
+  }
+
+  void start() async {
+    try {
+      _noiseSubscription = _noiseMeter?.noiseStream.listen(onData);
+    } catch (err) {
+      print(err);
+    }
+  }
+
+  void stop2() async {
+    try {
+      if (_noiseSubscription != null) {
+        _noiseSubscription!.cancel();
+        _noiseSubscription = null;
+        print("Streaming data Stopeed now!!!!");
+      }
+      this.setState(() {
+        this._isRecording = false;
+      });
+    } catch (err) {
+      print('stopRecorder error: $err');
+    }
   }
 
   @override
   void dispose() {
+    _noiseSubscription?.cancel();
     if (isConnected) {
       isDisconnecting = true;
       connection?.dispose();
@@ -405,7 +536,6 @@ class _MyHomePageState extends State<MyHomePage> {
               iconSize: 30,
               onPressed: () {
                 _sendMessage("s");
-                print(sample);
 
                 // Navigator.of(context).push(
                 //   MaterialPageRoute(
@@ -415,10 +545,7 @@ class _MyHomePageState extends State<MyHomePage> {
                 //   ),
                 // );
               },
-              icon: Icon(
-                Icons.find_replace_sharp,
-                color: Colors.black,
-              ))
+              icon: batteries())
         ],
         leading: IconButton(
           icon: Icon(Icons.arrow_back),
@@ -649,9 +776,15 @@ class _MyHomePageState extends State<MyHomePage> {
                       if (_isElevated) {
                         startTimer();
                         timerBanner();
+                        start();
                       } else {
                         stopTimer();
                         stopBanner();
+                        stop2();
+                        print("the last second is : $second");
+
+                        print(
+                            "the length of list sound new is: ${listSoundNew.length}");
 
                         second = maxSeconds;
                       }

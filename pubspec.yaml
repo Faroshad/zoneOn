@@ -32,6 +32,8 @@ dependencies:
   flutter_scan_bluetooth: ^2.1.2
   flutter_bluetooth_serial: ^0.4.0
   scoped_model: ^2.0.0
+  noise_meter: ^3.1.0
+  audio_streamer: ^2.2.0
 
 dev_dependencies:
   flutter_test:
