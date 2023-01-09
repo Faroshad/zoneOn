@@ -34,6 +34,7 @@ dependencies:
   scoped_model: ^2.0.0
   noise_meter: ^3.1.0
   audio_streamer: ^2.2.0
+  get: ^4.6.5
 
 dev_dependencies:
   flutter_test:
@@ -52,5 +53,6 @@ flutter:
   assets:
     - assets/dot2.png
     - assets/zon.png
+    - assets/First.png
 
   

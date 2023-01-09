@@ -20,6 +20,10 @@ class _DiscoveryPage extends State<DiscoveryPage> {
   List<BluetoothDiscoveryResult> results =
       List<BluetoothDiscoveryResult>.empty(growable: true);
   bool isDiscovering = false;
+  Color yellow = Color.fromARGB(255, 255, 230, 0);
+  Color pink = Color.fromARGB(255, 255, 0, 98);
+  Color greenBlue = Color.fromARGB(255, 0, 201, 167);
+  Color darkGray = Color.fromARGB(255, 46, 46, 46);
 
   _DiscoveryPage();
 
@@ -76,13 +80,20 @@ class _DiscoveryPage extends State<DiscoveryPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Color.fromARGB(255, 0, 201, 167),
+        leading: IconButton(
+          onPressed: () {
+            Navigator.pop(context);
+          },
+          icon: Icon(Icons.arrow_back),
+          color: darkGray,
+        ),
+        backgroundColor: yellow,
         title: isDiscovering
             ? Text(
                 'Discovering Devices',
                 style: GoogleFonts.openSans(
                     textStyle: Theme.of(context).textTheme.displayMedium,
-                    color: Color.fromARGB(255, 255, 255, 255),
+                    color: darkGray,
                     fontWeight: FontWeight.w700,
                     fontSize: 20),
               )
@@ -90,7 +101,7 @@ class _DiscoveryPage extends State<DiscoveryPage> {
                 'Discovered Devices',
                 style: GoogleFonts.openSans(
                     textStyle: Theme.of(context).textTheme.displayMedium,
-                    color: Color.fromARGB(255, 255, 255, 255),
+                    color: darkGray,
                     fontWeight: FontWeight.w700,
                     fontSize: 20),
               ),
@@ -100,13 +111,15 @@ class _DiscoveryPage extends State<DiscoveryPage> {
                   child: Container(
                     margin: new EdgeInsets.all(16.0),
                     child: CircularProgressIndicator(
-                      valueColor: AlwaysStoppedAnimation<Color>(
-                          Color.fromARGB(255, 247, 247, 247)),
+                      valueColor: AlwaysStoppedAnimation<Color>(darkGray),
                     ),
                   ),
                 )
               : IconButton(
-                  icon: Icon(Icons.replay),
+                  icon: Icon(
+                    Icons.replay,
+                    color: darkGray,
+                  ),
                   onPressed: _restartDiscovery,
                 )
         ],

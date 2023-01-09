@@ -36,6 +36,10 @@ class _StartPageState extends State<StartPage> {
 
   String _address = "...";
   String _name = "...";
+  Color yellow = Color.fromARGB(255, 255, 230, 0);
+  Color pink = Color.fromARGB(255, 255, 0, 98);
+  Color greenBlue = Color.fromARGB(255, 0, 201, 167);
+  Color darkGray = Color.fromARGB(255, 46, 46, 46);
 
   Timer? _discoverableTimeoutTimer;
   int _discoverableTimeoutSecondsLeft = 0;
@@ -112,7 +116,7 @@ class _StartPageState extends State<StartPage> {
     double height = MediaQuery.of(context).size.height;
     double width = MediaQuery.of(context).size.width;
     return Scaffold(
-      backgroundColor: Color.fromARGB(255, 0, 201, 167),
+      backgroundColor: yellow,
       body: Stack(
         children: [
           Padding(
@@ -121,8 +125,8 @@ class _StartPageState extends State<StartPage> {
               child: Container(
                 width: 300,
                 child: Image.asset(
-                  'assets/zon.png',
-                  color: Color.fromARGB(255, 0, 32, 90),
+                  'assets/First.png',
+                  color: darkGray,
                 ),
               ),
             ),
@@ -138,7 +142,7 @@ class _StartPageState extends State<StartPage> {
                       Flexible(
                         child: SwitchListTile(
                           // contentPadding: EdgeInsets.symmetric(horizontal: 30),
-                          activeColor: Color.fromARGB(255, 0, 201, 167),
+                          activeColor: darkGray,
                           selectedTileColor: Color.fromARGB(255, 255, 255, 255),
                           tileColor: Colors.white,
                           shape: RoundedRectangleBorder(
@@ -173,7 +177,7 @@ class _StartPageState extends State<StartPage> {
                         style: GoogleFonts.openSans(
                             textStyle:
                                 Theme.of(context).textTheme.displayMedium,
-                            color: Color.fromARGB(255, 255, 255, 255),
+                            color: darkGray,
                             fontWeight: FontWeight.w700,
                             fontSize: 18),
                       )
@@ -193,7 +197,7 @@ class _StartPageState extends State<StartPage> {
                           backgroundColor: Color.fromARGB(255, 255, 255, 255),
                           child: Icon(
                             Icons.search_rounded,
-                            color: Color.fromARGB(255, 0, 201, 167),
+                            color: darkGray,
                             size: 30,
                           ),
                           onPressed: () async {
@@ -223,7 +227,7 @@ class _StartPageState extends State<StartPage> {
                         style: GoogleFonts.openSans(
                             textStyle:
                                 Theme.of(context).textTheme.displayMedium,
-                            color: Color.fromARGB(255, 255, 255, 255),
+                            color: darkGray,
                             fontWeight: FontWeight.w700,
                             fontSize: 18),
                       )
@@ -243,7 +247,7 @@ class _StartPageState extends State<StartPage> {
                             backgroundColor: Color.fromARGB(255, 255, 255, 255),
                             child: Icon(
                               Icons.bluetooth_connected_outlined,
-                              color: Color.fromARGB(255, 0, 201, 167),
+                              color: darkGray,
                               size: 30,
                             ),
                             onPressed: () async {
@@ -275,7 +279,7 @@ class _StartPageState extends State<StartPage> {
                           style: GoogleFonts.openSans(
                               textStyle:
                                   Theme.of(context).textTheme.displayMedium,
-                              color: Color.fromARGB(255, 255, 255, 255),
+                              color: darkGray,
                               fontWeight: FontWeight.w700,
                               fontSize: 18),
                         ),
@@ -291,7 +295,7 @@ class _StartPageState extends State<StartPage> {
                       Flexible(
                         child: FloatingActionButton(
                             heroTag: 's3',
-                            backgroundColor: Color.fromARGB(255, 0, 32, 90),
+                            backgroundColor: darkGray,
                             child: Icon(
                               Icons.track_changes_outlined,
                               color: Color.fromARGB(255, 255, 255, 255),
@@ -317,7 +321,7 @@ class _StartPageState extends State<StartPage> {
                         style: GoogleFonts.openSans(
                             textStyle:
                                 Theme.of(context).textTheme.displayMedium,
-                            color: Color.fromARGB(255, 0, 32, 90),
+                            color: darkGray,
                             fontWeight: FontWeight.w800,
                             fontSize: 16),
                       ),

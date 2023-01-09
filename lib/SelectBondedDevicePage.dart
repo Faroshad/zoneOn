@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial.dart';
+import 'package:get/get.dart';
 
 import './BluetoothDeviceListEntry.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -38,6 +39,10 @@ class _SelectBondedDevicePage extends State<SelectBondedDevicePage> {
   // Availability
   StreamSubscription<BluetoothDiscoveryResult>? _discoveryStreamSubscription;
   bool _isDiscovering = false;
+  Color yellow = Color.fromARGB(255, 255, 230, 0);
+  Color pink = Color.fromARGB(255, 255, 0, 98);
+  Color greenBlue = Color.fromARGB(255, 0, 201, 167);
+  Color darkGray = Color.fromARGB(255, 46, 46, 46);
 
   _SelectBondedDevicePage();
 
@@ -122,12 +127,19 @@ class _SelectBondedDevicePage extends State<SelectBondedDevicePage> {
         .toList();
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Color.fromARGB(255, 0, 201, 167),
+        leading: IconButton(
+          onPressed: () {
+            Navigator.pop(context);
+          },
+          icon: Icon(Icons.arrow_back),
+          color: darkGray,
+        ),
+        backgroundColor: yellow,
         title: Text(
           'Select device',
           style: GoogleFonts.openSans(
               textStyle: Theme.of(context).textTheme.displayMedium,
-              color: Color.fromARGB(255, 255, 255, 255),
+              color: darkGray,
               fontWeight: FontWeight.w700,
               fontSize: 20),
         ),
@@ -144,7 +156,10 @@ class _SelectBondedDevicePage extends State<SelectBondedDevicePage> {
                   ),
                 )
               : IconButton(
-                  icon: Icon(Icons.replay),
+                  icon: Icon(
+                    Icons.replay,
+                    color: darkGray,
+                  ),
                   onPressed: _restartDiscovery,
                 )
         ],

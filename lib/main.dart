@@ -72,7 +72,14 @@ class _MyHomePageState extends State<MyHomePage> {
   List<String> listRzero = [];
   List<String> listLight = [];
   List<double> listSoundNew = [];
+  List<double> listPitch = [];
+  List<double> listRoll = [];
+  List<double> listYaw = [];
   double? result;
+  Color yellow = Color.fromARGB(255, 255, 230, 0);
+  Color pink = Color.fromARGB(255, 255, 0, 98);
+  Color greenBlue = Color.fromARGB(255, 0, 201, 167);
+  Color darkGray = Color.fromARGB(255, 46, 46, 46);
 
   double? batteryLife = 5;
   double? oldBatteryLife = 3;
@@ -100,7 +107,10 @@ class _MyHomePageState extends State<MyHomePage> {
     "Sound",
     "ppm",
     "rZero",
-    "Light"
+    "Light",
+    "pitch",
+    "roll",
+    "yaw"
   ];
   bool _isElevated = false;
   bool _isElevated2 = false;
@@ -112,6 +122,37 @@ class _MyHomePageState extends State<MyHomePage> {
   String situation = '';
 
   MyData myData = MyData();
+  int seconds = 0, minutes = 0;
+  String digitSeconds = "00", digitMinutes = "00";
+  Timer? _timer;
+  bool started = false;
+
+  void stoplaps() {
+    _timer!.cancel();
+    setState(() {
+      started = false;
+    });
+  }
+
+  void startlaps() {
+    started = true;
+    _timer = Timer.periodic(Duration(seconds: 1), (timer) {
+      int localSeconds = seconds;
+      int localMinutes = minutes;
+      if (localSeconds > 58) {
+        localMinutes++;
+        localSeconds = 0;
+      } else {
+        localSeconds++;
+      }
+      setState(() {
+        seconds = localSeconds;
+        minutes = localMinutes;
+        digitSeconds = (seconds >= 10) ? "$seconds" : "0$seconds";
+        digitMinutes = (minutes >= 10) ? "$minutes" : "0$minutes";
+      });
+    });
+  }
 
   static const maxSeconds = 00;
   int second = maxSeconds;
@@ -135,6 +176,9 @@ class _MyHomePageState extends State<MyHomePage> {
     sheet.importList(listPpm, 2, 8, true);
     sheet.importList(listRzero, 2, 9, true);
     sheet.importList(listLight, 2, 10, true);
+    sheet.importList(listPitch, 2, 11, true);
+    sheet.importList(listRoll, 2, 12, true);
+    sheet.importList(listYaw, 2, 13, true);
 
     //Save and launch the excel.
     final List<int> bytes = workbook
@@ -306,10 +350,10 @@ class _MyHomePageState extends State<MyHomePage> {
 
     // Create message if there is new line character
     String dataString = String.fromCharCodes(buffer);
-    // print(dataString);
+    print(dataString);
 
-    const temp = "{\"temperature\":";
-    const heatindex = ",\"heatIndex\":";
+    const temp = "TEMP:";
+    const heatindex = ",HI:";
 
     final startIndex = dataString.indexOf(temp);
     final endIndex = dataString.indexOf(heatindex, startIndex + temp.length);
@@ -317,7 +361,7 @@ class _MyHomePageState extends State<MyHomePage> {
         double.parse(dataString.substring(startIndex + temp.length, endIndex))
             .toStringAsFixed(2));
     //
-    const humidity = ",\"humidity\":";
+    const humidity = ",RH:";
 
     final startIndex1 = dataString.indexOf(heatindex);
     final endIndex1 =
@@ -326,7 +370,7 @@ class _MyHomePageState extends State<MyHomePage> {
             dataString.substring(startIndex1 + heatindex.length, endIndex1))
         .toStringAsFixed(2));
 
-    const ppm = ",\"ppm\":";
+    const ppm = ",CPPM:";
 
     final startIndex2 = dataString.indexOf(humidity);
     final endIndex2 = dataString.indexOf(ppm, startIndex2 + ppm.length);
@@ -334,7 +378,7 @@ class _MyHomePageState extends State<MyHomePage> {
             dataString.substring(startIndex2 + humidity.length, endIndex2))
         .toStringAsFixed(2));
 
-    const rZero = ",\"rZero\":";
+    const rZero = ",CRZ:";
 
     final startIndex3 = dataString.indexOf(ppm);
     final endIndex3 = dataString.indexOf(rZero, startIndex3 + rZero.length);
@@ -342,7 +386,7 @@ class _MyHomePageState extends State<MyHomePage> {
         double.parse(dataString.substring(startIndex3 + ppm.length, endIndex3))
             .toStringAsFixed(2));
 
-    const light = ",\"light\":";
+    const light = ",LIGHT:";
 
     final startIndex4 = dataString.indexOf(rZero);
     final endIndex4 = dataString.indexOf(light, startIndex4 + light.length);
@@ -350,7 +394,7 @@ class _MyHomePageState extends State<MyHomePage> {
             dataString.substring(startIndex4 + rZero.length, endIndex4))
         .toStringAsFixed(2));
 
-    const mic = ",\"mic\":";
+    const mic = ",MIC:";
 
     final startIndex5 = dataString.indexOf(light);
     final endIndex5 = dataString.indexOf(mic, startIndex5 + mic.length);
@@ -358,20 +402,42 @@ class _MyHomePageState extends State<MyHomePage> {
             dataString.substring(startIndex5 + light.length, endIndex5))
         .toStringAsFixed(2));
 
-    const battery = ",\"battery\":";
+    const battery = ",BATT:";
 
     // final startIndex6 = dataString.indexOf(mic);
     // final endIndex6 = dataString.indexOf(battery, startIndex6 + battery.length);
     // listSound.add(dataString.substring(startIndex6 + mic.length, endIndex6));
 
-    const fin = "}";
+    const pitch = ",PITCH:";
 
     final startIndex7 = dataString.indexOf(battery);
-    final endIndex7 = dataString.indexOf(fin, startIndex7 + fin.length);
+    final endIndex7 = dataString.indexOf(pitch, startIndex7 + pitch.length);
     oldBatteryLife = double.parse(
         dataString.substring(startIndex7 + battery.length, endIndex7));
 
     batteryLife = (((oldBatteryLife! - 2.6) * (100 - 0)) / (3.7 - 2.6)) + 0;
+
+    const roll = ",ROLL:";
+
+    final startIndex8 = dataString.indexOf(pitch);
+    final endIndex8 = dataString.indexOf(roll, startIndex8 + roll.length);
+    listPitch.add(double.parse(
+        dataString.substring(startIndex8 + pitch.length, endIndex8)));
+
+    const yaw = ",YAW:";
+
+    final startIndex9 = dataString.indexOf(roll);
+    final endIndex9 = dataString.indexOf(yaw, startIndex9 + yaw.length);
+    listRoll.add(double.parse(
+        dataString.substring(startIndex9 + roll.length, endIndex9)));
+
+    const last = ",";
+
+    final startIndex10 = dataString.indexOf(yaw);
+    final endIndex10 = dataString.indexOf(last, startIndex10 + last.length);
+    listYaw.add(double.parse(
+        dataString.substring(startIndex10 + yaw.length, endIndex10)));
+
     // RegExp exp = RegExp('(?<="temperature")(.*?)(?=,"heatIndex")');
     // String str = dataString;
     // RegExpMatch? match = exp.firstMatch(str);
@@ -482,11 +548,11 @@ class _MyHomePageState extends State<MyHomePage> {
     _isRecording = false;
   }
 
-  Stream<double> getRandomValues() async* {
-    while (true) {
-      await Future.delayed(Duration(seconds: 1));
-    }
-  }
+  // Stream<double> getRandomValues() async* {
+  //   while (true) {
+  //     await Future.delayed(Duration(seconds: 1));
+  //   }
+  // }
 
   void start() async {
     try {
@@ -570,7 +636,7 @@ class _MyHomePageState extends State<MyHomePage> {
         title: Container(
           width: 120,
           child: Image.asset(
-            'assets/zon.png',
+            'assets/First.png',
             color: Color.fromARGB(255, 48, 48, 48),
           ),
         ),
@@ -588,7 +654,7 @@ class _MyHomePageState extends State<MyHomePage> {
               personMarker: MarkerIcon(
                 icon: Icon(
                   Icons.circle,
-                  color: Color.fromARGB(255, 0, 201, 167),
+                  color: yellow,
                   size: 52,
                 ),
               ),
@@ -607,13 +673,13 @@ class _MyHomePageState extends State<MyHomePage> {
                   color: Colors.brown,
                 ),
               ),
-              roadColor: Color.fromARGB(255, 0, 201, 167),
+              roadColor: yellow,
             ),
             markerOption: MarkerOption(
                 defaultMarker: MarkerIcon(
               icon: Icon(
                 Icons.circle_outlined,
-                color: Colors.blue,
+                color: yellow,
                 size: 56,
               ),
             )),
@@ -632,7 +698,7 @@ class _MyHomePageState extends State<MyHomePage> {
                             height: 35,
                             decoration: BoxDecoration(
                                 border: Border.all(
-                                  color: Color.fromARGB(255, 0, 201, 167),
+                                  color: yellow,
                                 ),
                                 borderRadius: BorderRadius.circular(
                                     20) // use instead of BorderRadius.all(Radius.circular(20))
@@ -655,7 +721,7 @@ class _MyHomePageState extends State<MyHomePage> {
                             height: 35,
                             decoration: BoxDecoration(
                                 border: Border.all(
-                                  color: Color.fromARGB(255, 0, 201, 167),
+                                  color: yellow,
                                 ),
                                 borderRadius: BorderRadius.circular(
                                     20) // use instead of BorderRadius.all(Radius.circular(20))
@@ -680,10 +746,10 @@ class _MyHomePageState extends State<MyHomePage> {
                       width: 40,
                       child: FloatingActionButton(
                           heroTag: '123',
-                          backgroundColor: Color.fromARGB(255, 0, 201, 167),
+                          backgroundColor: yellow,
                           child: Icon(
                             Icons.mode_comment_outlined,
-                            color: Color.fromARGB(255, 255, 255, 255),
+                            color: darkGray,
                             size: 22,
                           ),
                           onPressed: () {
@@ -703,7 +769,7 @@ class _MyHomePageState extends State<MyHomePage> {
                             height: 35,
                             decoration: BoxDecoration(
                                 border: Border.all(
-                                  color: Color.fromARGB(255, 0, 201, 167),
+                                  color: yellow,
                                 ),
                                 borderRadius: BorderRadius.circular(
                                     20) // use instead of BorderRadius.all(Radius.circular(20))
@@ -715,7 +781,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                     textStyle: Theme.of(context)
                                         .textTheme
                                         .displayMedium,
-                                    color: Color.fromARGB(255, 68, 68, 68),
+                                    color: Colors.black,
                                     fontWeight: FontWeight.w700,
                                     fontSize: 11),
                               ),
@@ -728,11 +794,10 @@ class _MyHomePageState extends State<MyHomePage> {
                             width: 40,
                             child: FloatingActionButton(
                                 heroTag: '435',
-                                backgroundColor:
-                                    Color.fromARGB(255, 0, 201, 167),
+                                backgroundColor: yellow,
                                 child: Icon(
                                   Icons.sensors,
-                                  color: Color.fromARGB(255, 255, 255, 255),
+                                  color: darkGray,
                                   size: 22,
                                 ),
                                 onPressed: () {
@@ -777,14 +842,12 @@ class _MyHomePageState extends State<MyHomePage> {
                         startTimer();
                         timerBanner();
                         start();
+                        startlaps();
                       } else {
                         stopTimer();
                         stopBanner();
                         stop2();
-                        print("the last second is : $second");
-
-                        print(
-                            "the length of list sound new is: ${listSoundNew.length}");
+                        stoplaps();
 
                         second = maxSeconds;
                       }
@@ -812,15 +875,15 @@ class _MyHomePageState extends State<MyHomePage> {
                         ),
                         _isElevated
                             ? Padding(
-                                padding: EdgeInsets.only(left: 20),
+                                padding: EdgeInsets.only(left: 10),
                                 child: Text(
-                                  '$second',
+                                  "$digitMinutes:$digitSeconds",
                                   style: GoogleFonts.openSans(
                                       textStyle: Theme.of(context)
                                           .textTheme
                                           .displayMedium,
-                                      color: Color.fromARGB(255, 0, 0, 0),
-                                      fontWeight: FontWeight.w700,
+                                      color: darkGray,
+                                      fontWeight: FontWeight.w600,
                                       fontSize: 16),
                                 ),
                               )
